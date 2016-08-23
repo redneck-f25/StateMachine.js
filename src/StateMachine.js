@@ -26,7 +26,7 @@
  * 
  * <next_call>        ::= <flow_ctl> | <error_ctl>
  * <flow_ctl>         ::= "next" [ <delay_or_atomic> ] [ <skip_or_jump> ] [ <bind> ] "(" <args> ")"
- * <error_ctl>        ::= "next" [ <timed> ] <try> [ <bind> ] "(" <args> ")" <catch>
+ * <error_ctl>        ::= "next" [ <delay_or_atomic> ] <try> [ <bind> ] "(" <args> ")" <catch>
  * <delay_or_atomic>  ::= ".delay(" <time_arg> ")" | ".atomic"
  * <time_arg>         ::= <positive number>
  * <skip_or_jump>     ::= ".skip(" <skip_arg> ")" | ".jump(" <jump_arg> ")"
@@ -46,14 +46,14 @@ class StateMachine {
     if ( typeof options === 'function' || options instanceof Array ) {
       states = options;
       options = {
-        setImmediate: function setImmediate() {
+        _setImmediate: function setImmediate() {
           return setTimeout.call( this, arguments[ 0 ], 0 );
         },
-        setTimeout: setTimeout,
+        _setTimeout: setTimeout,
       }
     }
     states instanceof Array || ( states = Array.prototype.slice.call( arguments ) );
-    var { setImmediate } = options;
+    var { _setImmediate, _setTimeout } = options;
     
     var indexesByName = {};
     states.forEach( ( fn, index )=>{
@@ -69,9 +69,10 @@ class StateMachine {
     });
     
     var index = -1;
+
     var next = function __state_machine_next() {
       next.error = null;
-      setImmediate( states[ ++index ].bind( this, next, ...arguments ) );
+      _setImmediate( states[ ++index ].bind( this, next, ...arguments ) );
     }
     var try_catch_wrapper = function __state_machine_try_catch( thisArg, args, error_callback_or_name ) {
       try {
@@ -79,8 +80,10 @@ class StateMachine {
         states[ ++index ].call( thisArg, next, ...args );
       } catch ( e ) {
         if ( error_callback_or_name === null ) {
+          // call same function again
           error_callback_or_name = states[ index ];
         } else if ( typeof error_callback_or_name === 'string' ) {
+          // find function by name
           index = indexesByName[ error_callback_or_name ];
           error_callback_or_name = states[ index ];
         }
@@ -103,14 +106,14 @@ class StateMachine {
       try: { value: function __state_machine_try() {
         return {
           catch: ( error_callback_or_name )=>{
-            setImmediate( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ) );
+            _setImmediate( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ) );
           },
         };
       }},
       delay: { value: function __state_machine_delay( time ) {
         var delayedFn = function __state_machine_delayed() {
           next.error = null;
-          setTimeout( states[ ++index ].bind( this, next, ...arguments ), time );
+          _setTimeout( states[ ++index ].bind( this, next, ...arguments ), time );
         };
         Object.defineProperties( delayedFn, {
           skip: { value: function __state_machine_delay_skip( num = 1 ) {
@@ -127,7 +130,7 @@ class StateMachine {
           try: { value: function __state_machine_try() {
             return {
               catch: ( error_callback_or_name )=>{
-                setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), time );
+                _setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), time );
               },
             };
           }},
