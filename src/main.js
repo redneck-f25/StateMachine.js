@@ -203,7 +203,6 @@ function run() {
     ()=>( null )
   );
 }
-run();
 
 function longDemo() {
   var valueCollectors = [
@@ -270,3 +269,5 @@ function longDemo() {
     .concat( function () {} )
 	);
 }
+
+window.addEventListener( 'load', run );
