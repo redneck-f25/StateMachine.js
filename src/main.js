@@ -9,7 +9,7 @@ new GlobalTimers();
 
 function appendHr( next ) {
 	document.body.appendChild( document.createElement( 'hr' ) );
-  next();
+  next.bind( this )();
 }
 
 function run() {
@@ -37,7 +37,7 @@ function run() {
       });
       new StateMachine(
         ( next )=>{
-        	window.setTimeout( outerNext, 4000 );
+        	window.setTimeout( outerNext, 9000 );
           next.atomic( [] );
         },
         ( next, values )=>{
@@ -47,79 +47,118 @@ function run() {
           };
           next.atomic( values );
         },
-        /**/
-        ( next, values )=>( setTimeout( ()=>( values.push( 8 ), next.atomic( values ) ), 800 ) ),
-        ( next, values )=>( setTimeout( ()=>( values.push( 12 ), next.atomic.skip( 1 )( values ) ), 1200 ) ),
-        ( next, values )=>( setTimeout( ()=>( values.push( 'x' ), next.atomic( values ) ), 200 ) ),
-        ( next, values )=>( setTimeout( ()=>( values.push( 2 ), next( values ) ), 600 ) ),
-        ( next, values )=>( values.push( 7 ), next( values ) ),
-        ( next, values )=>( setTimeout( next.atomic.bind( null, values, ...values ), 800 ) ),
+        ( next, values )=>{
+          values.push( 8 );
+          next.delay( 800 )( values );
+        },
+        ( next, values )=>{
+          values.push( 12 );
+          next.delay( 1200 ).skip( 1 )( values );
+        },
+        ( next, values )=>{
+          values.push( 'x' );
+          next.delay( 200 )( values );
+        },
+        ( next, values )=>{
+          values.push( 2 );
+          next.atomic( values );
+        },
+        ( next, values )=>{
+          values.push( 7 );
+          next( values )
+        },
+        ( next, values )=>{
+          next.delay( 800 )( values, ...values );
+        },
         ( next, values, a, b, c, d )=>{
           out( '( a + b ) / c + d = ' + ( ( a + b ) / c + d ) );
-          next.call( values, values );
+          next( values );
         },
-        /**/
-        ( next )=>{
-          next.atomic
-          .try( 'atomicTryDone', 'atomic.try() //success' )
-          .catch( 'fail' );
+
+        ( next, values )=>{ next.bind( values )(); },
+        function ( next ) {
+          out.json( [ 'next.bind()()', this ] );
+          next.skip( 0 ).bind( this )();
         },
-        ( next, done, text )=>{
-          out( text );
-          next.jump( 'success' )( done );
+        function ( next ) {
+          out.json( [ 'next.skip().bind()()', this ] );
+          next.jump( 'bound_next_jump' ).bind( this )();
         },
-        function atomicTryDone( next ) {
-          out( 'done' );
-          next();
+        function bound_next_jump( next ) {
+          out.json( [ 'next.jump().bind()()', this ] );
+          next( this );
         },
-        ( next )=>{
-          next.atomic
-          .try( 'atomicTryFailDone', 'atomic.try() //fail' )
-          .catch( 'fail' );
+
+        ( next, values )=>{ next.delay( 1000 ).bind( values )(); },
+        function ( next ) {
+          out.json( [ 'next.delay().bind()()', this ] );
+          next.delay( 1000 ).skip( 0 ).bind( this )();
         },
-        ( next, done, text )=>{
-          out( text );
-          throw new Error( text );
+        function ( next ) {
+          out.json( [ 'next.delay().skip().bind()()', this ] );
+          next.delay( 1000 ).jump( 'bound_next_delay_jump' ).bind( this )();
         },
-        function atomicTryFailDone( next ) {
-          out( 'done' );
-          next();
+        function bound_next_delay_jump( next ) {
+          out.json( [ 'next.delay().jump().bind()()', this ] );
+          next( this );
         },
-        ( next )=>{
-          next
-          .try( 'tryDone', 'try() //success' )
-          .catch( 'fail' );
+
+        ( next, values )=>{ next.atomic.bind( values )(); },
+        function ( next ) {
+          out.json( [ 'next.atomic.bind()()', this ] );
+          next.atomic.skip( 0 ).bind( this )()
         },
-        ( next, done, text )=>{
-          out( text );
-          next.jump( 'success' )( done );
+        function ( next ) {
+          out.json( [ 'next.atomic.skip().bind()()', this ] );
+          next.atomic.jump( 'bound_next_atomic_jump' ).bind( this )()
         },
-        function tryDone( next ) {
-          out( 'done' );
-          next();
+        function bound_next_atomic_jump( next ) {
+          out.json( [ 'next.atomic.jump().bind()()', this ] );
+          next( this );
         },
-        ( next )=>{
-          next.atomic
-          .try( 'tryFailDone', 'try() //fail' )
-          .catch( 'fail' );
+
+        ( next, values )=>{ next.try.bind( values )().catch(); },
+        function ( next ) {
+          out.json( [ 'next.try.bind()()', this ] );
+          next.try.bind( this )().catch( null );
         },
-        ( next, done, text )=>{
-          out( text );
-          throw new Error( text );
+        function ( next ) {
+          if ( next.error ) {
+            out.json( [ 'next.try.bind()().catch()', this, next.error.toString() ] );
+            next( this );
+            return;
+          }
+          throw new Error ( '' );
         },
-        function tryFailDone( next ) {
-          out( 'done' );
-          next();
+
+        ( next, values )=>{ next.delay( 1000 ).try.bind( values )().catch(); },
+        function ( next ) {
+          out.json( [ 'next.delay().try.bind()()', this ] );
+          next.delay( 1000 ).try.bind( this )().catch( null );
         },
-        ( next )=>{ next.skip( 2 )(); },
-        function fail( err, next, done ) {
-          out( err );
-          next.jump( done )();
+        function ( next ) {
+          if ( next.error ) {
+            out.json( [ 'next.delay().try.bind()().catch()', this, next.error.toString() ] );
+            next( this );
+            return;
+          }
+          throw new Error ( '' );
         },
-        function success( next, done ) {
-          out( 'success' );
-          next.jump( done )();
+        
+        ( next, values )=>{ next.atomic.try.bind( values )().catch(); },
+        function ( next ) {
+          out.json( [ 'next.atomic.try.bind()()', this ] );
+          next.atomic.try.bind( this )().catch( null );
         },
+        function ( next ) {
+          if ( next.error ) {
+            out.json( [ 'next.atomic.try.bind()().catch()', this, next.error.toString() ] );
+            next( this );
+            return;
+          }
+          throw new Error ( '' );
+        },
+        
         ( next )=>{ out( 'done' ); next(); },
         ()=>( btn.disabled = true )
       );
@@ -229,7 +268,7 @@ function longDemo() {
       next( values );
     },
   ];
-
+  
 	new StateMachine([
     function step1( next ) {
       var values = [];

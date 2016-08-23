@@ -4,9 +4,56 @@
 
 "use strict";
 
+/**
+ * First argument to every function is the next()-function. Arguments to next()
+ * are passed to the the next function.
+ *
+ * next( args )
+ *   invokes the next function with a zero-timeout.
+ * next.atomic( args )
+ *   invokes the next function immediately (in the same call stack).
+ * next.skip( num )( args ), next.atomic.skip( num )( args )
+ *   skip number of steps
+ * next.jump( index )( args ), next.atomic.jump( index )( args )
+ *   jump to step
+ * next.try( args ).catch( callback ), next.atomic.try( args ).catch( callback )
+ *   wrap next function with try-catch
+ * 
+ * next.delay( time )( args )
+ * next.delay( time ).try( args ).catch( callback )
+ *
+ * next() might be bound to a context ("this").
+ * 
+ * <next_call>        ::= <flow_ctl> | <error_ctl>
+ * <flow_ctl>         ::= "next" [ <delay_or_atomic> ] [ <skip_or_jump> ] [ <bind> ] "(" <args> ")"
+ * <error_ctl>        ::= "next" [ <timed> ] <try> [ <bind> ] "(" <args> ")" <catch>
+ * <delay_or_atomic>  ::= ".delay(" <time_arg> ")" | ".atomic"
+ * <time_arg>         ::= <positive number>
+ * <skip_or_jump>     ::= ".skip(" <skip_arg> ")" | ".jump(" <jump_arg> ")"
+ * <skip_arg>         ::= <number>
+ * <jump_arg>         ::= <positive number> | <string>
+ * <bind>             ::= ".bind(" <bind_arg> ")"
+ * <bind_arg>         ::= <object>
+ * <args>             ::= <arg> | <arg> "," <args>
+ * <arg>              ::= <argument>
+ * <try>              ::= ".try"
+ * <catch>            ::= ".catch(" [ <catch_arg> ] ")"
+ * <catch_arg>        ::= <function> | <string> | "null"
+ * 
+ **/
 class StateMachine {
-  constructor( states ) {
+  constructor( options, states ) {
+    if ( typeof options === 'function' || options instanceof Array ) {
+      states = options;
+      options = {
+        setImmediate: function setImmediate() {
+          return setTimeout.call( this, arguments[ 0 ], 0 );
+        },
+        setTimeout: setTimeout,
+      }
+    }
     states instanceof Array || ( states = Array.prototype.slice.call( arguments ) );
+    var { setImmediate } = options;
     
     var indexesByName = {};
     states.forEach( ( fn, index )=>{
@@ -23,74 +70,90 @@ class StateMachine {
     
     var index = -1;
     var next = function __state_machine_next() {
-      setTimeout( states[ ++index ].bind( this, next, ...arguments ), 0 );
+      next.error = null;
+      setImmediate( states[ ++index ].bind( this, next, ...arguments ) );
     }
+    var try_catch_wrapper = function __state_machine_try_catch( thisArg, args, error_callback_or_name ) {
+      try {
+        next.error = null;
+        states[ ++index ].call( thisArg, next, ...args );
+      } catch ( e ) {
+        if ( error_callback_or_name === null ) {
+          error_callback_or_name = states[ index ];
+        } else if ( typeof error_callback_or_name === 'string' ) {
+          index = indexesByName[ error_callback_or_name ];
+          error_callback_or_name = states[ index ];
+        }
+        next.error = e;
+        error_callback_or_name.call( thisArg, next, ...args );
+      }
+    };
     Object.defineProperties( next, {
       skip: { value: function __state_machine_skip( num = 1 ) {
         index += num;
-        return next.bind( this );
+        return next;
       }},
       jump: { value: function __state_machine_jump( index_or_name ) {
         if ( typeof index_or_name === 'string' ) {
           index_or_name = indexesByName[ index_or_name ];
         }
         index = index_or_name - 1;
-        return next.bind( this );
+        return next;
       }},
       try: { value: function __state_machine_try() {
-        var [ thisArg, args ] = [ this, arguments ]; 
         return {
           catch: ( error_callback_or_name )=>{
-            if ( typeof error_callback_or_name === 'string' ) {
-              error_callback_or_name = states[ indexesByName[ error_callback_or_name ] ];
-            }
-            setTimeout( function __state_machine_try_catch() {
-              try {
-                // ( function __state_machine_try() {
-                  states[ ++index ].call( thisArg, next, ...args );
-                // })();
-              } catch ( e ) {
-                // ( function __state_machine_catch() {
-                  error_callback_or_name.call( thisArg, e, next, ...args );
-                // })();
-              }
-            }, 0 );
+            setImmediate( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ) );
           },
         };
       }},
+      delay: { value: function __state_machine_delay( time ) {
+        var delayedFn = function __state_machine_delayed() {
+          next.error = null;
+          setTimeout( states[ ++index ].bind( this, next, ...arguments ), time );
+        };
+        Object.defineProperties( delayedFn, {
+          skip: { value: function __state_machine_delay_skip( num = 1 ) {
+            index += num;
+            return delayedFn;
+          }},
+          jump: { value: function __state_machine_delay_jump( index_or_name ) {
+            if ( typeof index_or_name === 'string' ) {
+              index_or_name = indexesByName[ index_or_name ];
+            }
+            index = index_or_name - 1;
+            return delayedFn;
+          }},
+          try: { value: function __state_machine_try() {
+            return {
+              catch: ( error_callback_or_name )=>{
+                setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), time );
+              },
+            };
+          }},
+        });
+        return delayedFn;
+      }},
       atomic: { value: function __state_machine_atomic_next() {
+        next.error = null;
         states[ ++index ].call( this, next, ...arguments );
       }},
     });
     Object.defineProperties( next.atomic, {
       skip: { value: function __state_machine_atomic_skip( num = 1 ) {
         index += num;
-        return next.atomic.bind( this );
+        return next.atomic;
       }},
       jump: { value: function __state_machine_atomic_jump( index_or_name ) {
         if ( typeof index_or_name === 'string' ) {
           index_or_name = indexesByName[ index_or_name ];
         }
         index = index_or_name - 1;
-        return next.atomic.bind( this );
+        return next.atomic;
       }},
       try: { value: function __state_machine_atomic_try() {
-        var [ thisArg, args ] = [ this, arguments ]; 
         return {
-          catch: function __state_machine_atomic_try_catch( error_callback_or_name ) {
-            if ( typeof error_callback_or_name === 'string' ) {
-              error_callback_or_name = states[ indexesByName[ error_callback_or_name ] ];
-            }
-            try {
-              // ( function __state_machine_atomic_try() {
-                states[ ++index ].call( thisArg, next, ...args );
-              // })();
-            } catch( e ) {
-              // ( function __state_machine_atomic_catch() {
-                error_callback_or_name.call( thisArg, e, next, ...args );
-              // })();
-            }
-          },
+          catch: try_catch_wrapper.bind( null, this, arguments ),
         };
       }},
     });
