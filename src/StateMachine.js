@@ -28,7 +28,7 @@
  * <state>            ::= "next" [ <delay_or_atomic> ] [ <skip_or_jump> ]
  * <context>          ::= [ <bind> ] "(" <args> ")"
  * <delay_or_atomic>  ::= ".delay(" <delay_arg> ")" | ".atomic"
- * <delay_arg>         ::= <positive number>
+ * <delay_arg>        ::= <positive number>
  * <skip_or_jump>     ::= ".skip(" <skip_arg> ")" | ".jump(" <jump_arg> ")"
  * <skip_arg>         ::= <ECMAScript number>
  * <jump_arg>         ::= <ECMAScript positive number> | <ECMAScript string>
