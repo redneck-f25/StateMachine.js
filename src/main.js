@@ -78,12 +78,14 @@ function run() {
         ( next, values )=>{ next.bind( values )(); },
         function ( next ) {
           out.json( [ 'next.bind()()', this ] );
-          next.skip( 0 ).bind( this )();
+          next.skip( 1 ).bind( this )();
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.skip().bind()()', this ] );
           next.jump( 'bound_next_jump' ).bind( this )();
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function bound_next_jump( next ) {
           out.json( [ 'next.jump().bind()()', this ] );
           next( this );
@@ -92,12 +94,14 @@ function run() {
         ( next, values )=>{ next.delay( 1000 ).bind( values )(); },
         function ( next ) {
           out.json( [ 'next.delay().bind()()', this ] );
-          next.delay( 1000 ).skip( 0 ).bind( this )();
+          next.delay( 1000 ).skip( 1 ).bind( this )();
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.delay().skip().bind()()', this ] );
           next.delay( 1000 ).jump( 'bound_next_delay_jump' ).bind( this )();
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function bound_next_delay_jump( next ) {
           out.json( [ 'next.delay().jump().bind()()', this ] );
           next( this );
@@ -106,22 +110,26 @@ function run() {
         ( next, values )=>{ next.atomic.bind( values )(); },
         function ( next ) {
           out.json( [ 'next.atomic.bind()()', this ] );
-          next.atomic.skip( 0 ).bind( this )()
+          next.atomic.skip( 1 ).bind( this )()
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.atomic.skip().bind()()', this ] );
           next.atomic.jump( 'bound_next_atomic_jump' ).bind( this )()
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function bound_next_atomic_jump( next ) {
           out.json( [ 'next.atomic.jump().bind()()', this ] );
           next( this );
         },
 
-        ( next, values )=>{ next.try.bind( values )().catch(); },
+        ( next, values )=>{ next.skip( 1 ).try.bind( values )().catch(); },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.try.bind()()', this ] );
-          next.try.bind( this )().catch( null );
+          next.skip( 1 ).try.bind( this )().catch( null );
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           if ( next.error ) {
             out.json( [ 'next.try.bind()().catch()', this, next.error.toString() ] );
@@ -131,11 +139,13 @@ function run() {
           throw new Error ( '' );
         },
 
-        ( next, values )=>{ next.delay( 1000 ).try.bind( values )().catch(); },
+        ( next, values )=>{ next.skip( 1 ).delay( 1000 ).try.bind( values )().catch(); },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.delay().try.bind()()', this ] );
-          next.delay( 1000 ).try.bind( this )().catch( null );
+          next.skip( 1 ).delay( 1000 ).try.bind( this )().catch( null );
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           if ( next.error ) {
             out.json( [ 'next.delay().try.bind()().catch()', this, next.error.toString() ] );
@@ -145,11 +155,13 @@ function run() {
           throw new Error ( '' );
         },
         
-        ( next, values )=>{ next.atomic.try.bind( values )().catch(); },
+        ( next, values )=>{ next.skip( 1 ).atomic.try.bind( values )().catch(); },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           out.json( [ 'next.atomic.try.bind()()', this ] );
-          next.atomic.try.bind( this )().catch( null );
+          next.skip( 1 ).atomic.try.bind( this )().catch( null );
         },
+        ( next )=>{ throw new Error( 'skipped' ); },
         function ( next ) {
           if ( next.error ) {
             out.json( [ 'next.atomic.try.bind()().catch()', this, next.error.toString() ] );

@@ -24,9 +24,9 @@
  *
  * next() might be bound to a context ("this").
  * 
- * <next_call>        ::= <flow_ctl> | <error_ctl>
- * <flow_ctl>         ::= "next" [ <delay_or_atomic> ] [ <skip_or_jump> ] [ <bind> ] "(" <args> ")"
- * <error_ctl>        ::= "next" [ <delay_or_atomic> ] <try> [ <bind> ] "(" <args> ")" <catch>
+ * <next_call>        ::= <state> <context> | <state> <try> <context> <catch>
+ * <state>            ::= "next" [ <delay_or_atomic> ] [ <skip_or_jump> ]
+ * <context>          ::= [ <bind> ] "(" <args> ")"
  * <delay_or_atomic>  ::= ".delay(" <time_arg> ")" | ".atomic"
  * <time_arg>         ::= <positive number>
  * <skip_or_jump>     ::= ".skip(" <skip_arg> ")" | ".jump(" <jump_arg> ")"
