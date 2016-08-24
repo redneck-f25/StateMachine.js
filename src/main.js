@@ -14,6 +14,38 @@ function appendHr( next ) {
 
 function run() {
   new StateMachine(
+    ( outerNext )=>{
+      var runningMachines = 0;
+      new StateMachine(
+        ( next )=>{
+          ++runningMachines;
+          next.delay( 600 )();
+        },
+        ( next )=>{
+          outerNext.jump( 'machineDone' )( --runningMachines );
+        }
+      );
+      new StateMachine(
+        ( next )=>{
+          ++runningMachines;
+          next.delay( 1200 )();
+        },
+        ( next )=>{
+          outerNext.jump( 'machineDone' )( --runningMachines );
+        }
+      );
+    },
+    function machineDone( outerNext, runningMachines ) {
+      out( 'done' );
+      if ( runningMachines === 0 ) {
+        outerNext();
+      }
+    },
+    ( outerNext )=>{
+      out( 'all done' );
+    }
+  );
+  new StateMachine(
   	// === Restart button ===
     function restartButton( outerNext ) {
       var btn = document.body.appendChild( document.createElement( 'button' ) );
