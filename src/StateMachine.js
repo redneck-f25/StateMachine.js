@@ -42,22 +42,26 @@
  * 
  **/
 class StateMachine {
+  get _setTimeout () {
+    return setTimeout;
+  }
   constructor( options, states ) {
     if ( typeof options === 'function' || options instanceof Array ) {
       states = options;
-      options = {
-        _setImmediate: function setImmediate() {
-          return setTimeout.call( this, arguments[ 0 ], 0 );
-        },
-        _setTimeout: setTimeout,
-      }
+      options = undefined;
     }
-    states instanceof Array || ( states = Array.prototype.slice.call( arguments ) );
-    var { _setImmediate, _setTimeout } = options;
+    states instanceof Array || ( states = Array.prototype.slice.call( arguments, +!!options ) );
+    
+    if ( options && options.setTimeout ) {
+      var setTimeout = options.setTimeout;
+    } else {
+      var setTimeout = this._setTimeout;
+    }
+    //var { _setImmediate, _setTimeout } = options;
     
     var indexesByName = {};
     states.forEach( ( fn, index )=>{
-      if ( !!fn.name ) {
+      if ( !!fn && !!fn.name ) {
         indexesByName[ fn.name ] =
             indexesByName[ fn.name ] === undefined ? index : null;
       }
@@ -72,8 +76,16 @@ class StateMachine {
 
     var next = function __state_machine_next() {
       next.error = null;
-      _setImmediate( states[ ++index ].bind( this, next, ...arguments ) );
+      setTimeout( states[ ++index ].bind( this, next, ...arguments ), 0 );
     }
+
+    Object.defineProperties( this, {
+      start: { value: function run() {
+        index = -1;
+        states[ ++index ].call( this, next, ...arguments );
+        return next;
+      }},
+    });
     var try_catch_wrapper = function __state_machine_try_catch( thisArg, args, error_callback_or_name ) {
       try {
         next.error = null;
@@ -106,14 +118,14 @@ class StateMachine {
       try: { value: function __state_machine_try() {
         return {
           catch: ( error_callback_or_name )=>{
-            _setImmediate( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ) );
+            setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), 0 );
           },
         };
       }},
       delay: { value: function __state_machine_delay( time ) {
         var delayedFn = function __state_machine_delayed() {
           next.error = null;
-          _setTimeout( states[ ++index ].bind( this, next, ...arguments ), time );
+          setTimeout( states[ ++index ].bind( this, next, ...arguments ), time );
         };
         Object.defineProperties( delayedFn, {
           skip: { value: function __state_machine_delay_skip( num = 1 ) {
@@ -130,7 +142,7 @@ class StateMachine {
           try: { value: function __state_machine_try() {
             return {
               catch: ( error_callback_or_name )=>{
-                _setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), time );
+                setTimeout( try_catch_wrapper.bind( null, this, arguments, error_callback_or_name ), time );
               },
             };
           }},
@@ -160,6 +172,5 @@ class StateMachine {
         };
       }},
     });
-    states[ ++index ].call( this, next, ...arguments );
   };
 };

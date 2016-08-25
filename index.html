@@ -5,12 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>State Machine - Redneck Engineering</title>
     <style>
-        pre { margin: 0; }
-        button { padding: 0; }
+        pre { margin: 0; height: 22px; vertical-align: top; padding-top: 0; }
+        button { padding: 0; line-height: 1em; display: inline-block; }
+        body > div:hover { background: #ff8; }
     </style>
     <script src="src/StateMachine.js"></script>
     <script src="src/Timers.js"></script>
-    <script src="src/main.js"></script>
+    <script src="src/GlobalTimers.js"></script>
+    <script src="test/run-parallel.js"></script>
+    <script src="test/run-next-invocation.js"></script>
+    <script src="test/run-wizzard-1.js"></script>
+    <script src="test/run-project-task.js"></script>
+    <script src="test/run-timers.js"></script>
+    <script src="test/main.js"></script>
 </head>
 <body>
     <h1>StateMachine.js</h1>

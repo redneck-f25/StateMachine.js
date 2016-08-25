@@ -3,16 +3,50 @@
 var out = ( text )=>( document.body.appendChild( document.createElement( 'pre' ) ).innerText = text );
 out.json = ( value, space )=>( out( JSON.stringify( value, undefined, space ) ) );
 
-new GlobalTimers();
-
-// END: MAGIC
-
 function appendHr( next ) {
 	document.body.appendChild( document.createElement( 'hr' ) );
   next.bind( this )();
 }
 
-function run() {
+function run () {
+  var btn;
+
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Reload';
+  btn.addEventListener( 'click', ()=>{ location.reload(); } );
+
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Restart';
+  btn.addEventListener( 'click', function() {
+    timers.stop();
+    document.body.innerHTML = [0, 1].map( ( i )=>( document.body.children[ i ].outerHTML ) ).join( '' ) ;
+    timers.nextTick( run );
+  });
+
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Parallel Machines';
+  btn.addEventListener( 'click', runParallelMachines );
+
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'next() Invocation';
+  btn.addEventListener( 'click', runNextInvocation );
+
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Wizzard 1';
+  btn.addEventListener( 'click', runWizzard_1 );
+  
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Project / Task';
+  btn.addEventListener( 'click', runProjectTask );
+  
+  btn = document.body.appendChild( document.createElement( 'button' ) );
+  btn.innerText = 'Timers';
+  btn.addEventListener( 'click', runTimers );
+
+	document.body.appendChild( document.createElement( 'hr' ) );
+}
+
+function xrun() {
   new StateMachine(
     ( outerNext )=>{
       var runningMachines = 0;
@@ -24,7 +58,7 @@ function run() {
         ( next )=>{
           outerNext.jump( 'machineDone' )( --runningMachines );
         }
-      );
+      ).start();
       new StateMachine(
         ( next )=>{
           ++runningMachines;
@@ -33,7 +67,7 @@ function run() {
         ( next )=>{
           outerNext.jump( 'machineDone' )( --runningMachines );
         }
-      );
+      ).start();
     },
     function machineDone( outerNext, runningMachines ) {
       out( 'done' );
@@ -44,7 +78,7 @@ function run() {
     ( outerNext )=>{
       out( 'all done' );
     }
-  );
+  ).start();
   new StateMachine(
   	// === Restart button ===
     function restartButton( outerNext ) {
@@ -205,7 +239,7 @@ function run() {
         
         ( next )=>{ out( 'done' ); next(); },
         ()=>( btn.disabled = true )
-      );
+      ).start();
     },
     // === Demo 2 ===
     appendHr,
@@ -257,7 +291,7 @@ function run() {
         spreadValues,
         computeResult,
         outerNext
-      );
+      ).start();
     },
     // === Demo 3 ===
     appendHr,
@@ -279,12 +313,12 @@ function run() {
           next();
         },
         ()=>( null )
-      );
+      ).start();
       outerNext();
     },
     ( outerNext )=>( setTimeout( longDemo, 1000 ), outerNext() ),
     ()=>( null )
-  );
+  ).start();
 }
 
 function longDemo() {
@@ -350,7 +384,7 @@ function longDemo() {
       next();
     })
     .concat( function () {} )
-	);
+	).start();
 }
 
 window.addEventListener( 'load', run );

@@ -5,11 +5,12 @@
 "use strict";
 
 class Timers {
-  constructor() {
+  constructor( parentTimers ) {
   	[ this.timeouts, this.intervals ] = [ Object.create( null ), Object.create( null ) ];
     [ 'set', 'clear' ].forEach( ( prefix )=>( [ 'Timeout', 'Interval' ].forEach( ( subject )=>{
       this[ '__' + prefix + subject ] = null;
     })));
+    this.parentTimers = parentTimers;
     this.exports = Object.create( {
       setTimeout: this.setTimeout.bind( this ),
       setInterval: this.setInterval.bind( this ),
@@ -24,11 +25,19 @@ class Timers {
       fn();
     }, time );
     this.timeouts[ id ] = fn;
+    return this.parentTimers ? this.parentTimers._bubbleTimeoutId( id ) : id;
+  }
+  _bubbleTimeoutId( id ) {
+    this.timeouts[ this.parentTimers ? this.parentTimers._bubbleTimeoutId( id ) : id ] = true;
     return id;
   }
   setInterval( fn, time ) {
 		var id = ( this.__setInterval || setInterval )( fn, time );
     this.intervals[ id ] = fn;
+    return this.parentTimers ? this.parentTimers._bubbleIntervalId( id ) : id;
+  }
+  _bubbleIntervalId( id ) {
+    this.intervals[ this.parentTimers ? this.parentTimers._bubbleIntervalId( id ) : id ] = true;
     return id;
   }
   clearTimeout( id ) {
@@ -52,25 +61,4 @@ class Timers {
       delete this.intervals[ id ];
     });
 	}
-}
-
-class GlobalTimers extends Timers {
-  constructor( globalName = 'timers' ) {
-  	super();
-    var global = Function( 'return this;' )();
-    if ( GlobalTimers.instance !== undefined ) {
-    	throw new TypeError( 'Only one instance allowed.' );
-    }
-    if ( global[ globalName ] !== undefined ) {
-      throw new TypeError( 'Global name in use.' );
-    }
-    global[ globalName ] = GlobalTimers.instance = this;
-    [ 'set', 'clear' ].forEach( ( prefix )=>( [ 'Timeout', 'Interval' ].forEach( ( subject )=>{
-      subject = prefix + subject;
-      this[ '__' + subject ] = global[ subject ].bind( global );
-    })));
-    for ( let name in this.exports ) {
-    	global[ name ] = this.exports[ name ];
-    }
-  }
 }
